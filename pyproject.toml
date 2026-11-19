@@ -1,0 +1,9 @@
+[project]
+name = "s2622037-final-task"
+version = "0.1.0"
+description = "DS Programming 最終課題: GitHubのGoogleリポジトリ情報のスクレイピングとDB保存"
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.31.0",
+]
