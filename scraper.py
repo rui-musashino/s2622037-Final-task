@@ -17,14 +17,29 @@ BASE_URL = "https://github.com/orgs/google/repositories"
 HEADERS = {"User-Agent": "Mozilla/5.0 (s2622037 DS Programming scraping assignment)"}
 
 
+MAX_RETRIES = 5
+
+
 def fetch_page(page: int) -> str:
-    """一覧ページの page ページ目のHTMLを返す。アクセスの前に必ず1秒待つ。"""
-    time.sleep(1)
+    """一覧ページの page ページ目のHTMLを返す。アクセスの前に必ず1秒待つ。
+
+    アクセスが多すぎる（HTTP 429）・サーバー側のエラー（5xx）のときは、
+    待ち時間を延ばしながら最大 MAX_RETRIES 回までやり直す。
+    """
     # q=sort:name-asc で名前順に並べる（更新順だと巡回中に順番が変わり、取りこぼしが出るため）
     params = {"q": "sort:name-asc", "page": page}
-    response = requests.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
-    response.raise_for_status()
-    return response.text
+    for attempt in range(1, MAX_RETRIES + 1):
+        time.sleep(1)
+        response = requests.get(BASE_URL, params=params, headers=HEADERS, timeout=30)
+        if response.status_code == 429 or response.status_code >= 500:
+            retry_after = response.headers.get("Retry-After", "")
+            wait = int(retry_after) if retry_after.isdigit() else 30 * attempt
+            print(f"  HTTP {response.status_code}: {wait} 秒待ってやり直します（{attempt}/{MAX_RETRIES}）")
+            time.sleep(wait)
+            continue
+        response.raise_for_status()
+        return response.text
+    raise RuntimeError(f"{page} ページ目を取得できませんでした")
 
 
 def parse_page(html: str) -> tuple[list[dict], int]:
